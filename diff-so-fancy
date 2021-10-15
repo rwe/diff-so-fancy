@@ -291,7 +291,7 @@ sub do_dsf_stuff {
 			}
 
 			# Check to see if we have the color for the fragment from git
-			if ($5 =~ /\e\[\d/) {
+			if ($5 =~ /${ansi_regex}/) {
 				#print "Has ANSI color for fragment\n";
 			} else {
 				# We don't have the ANSI sequence so we shell out to get it
@@ -611,8 +611,7 @@ sub char_count {
 # Remove all ANSI codes from a string
 sub bleach_text {
 	my $str = shift();
-	$str    =~ s/\e\[\d*(;\d+)*m//mg;
-
+	$str    =~ s/${ansi_regex}//mg;
 	return $str;
 }
 
