@@ -576,13 +576,21 @@ sub strip_leading_indicators {
 		return $line; # Nothing to do
 	}
 
-	$line =~ s/^(${ansi_color_regex})([ +-]){${columns_to_remove}}/$1/;
+	$line =~ s/^(${ansi_color_regex})([ +-]){${columns_to_remove}}(.*)/$1$6/;
+	my $start_color = $1 // '';
+	my $marker = $5 // '';
+	my $rem = $6 // '';
+
+	# If the line is empty, but we want it marked, do not remove the whitespace that would mark it.
+	if ($mark_empty_lines && $rem =~ /^(\s|${ansi_regex})*$/) {
+		$line = "${start_color} ${rem}\n";
+	}
 
 	if ($manually_color_lines) {
-		if (defined($5) && $5 eq "+") {
+		if ($marker eq "+") {
 			my $add_line_color = get_config_color("add_line");
 			$line              = $add_line_color . insert_reset_at_line_end($line);
-		} elsif (defined($5) && $5 eq "-") {
+		} elsif ($marker eq "-") {
 			my $remove_line_color = get_config_color("remove_line");
 			$line                 = $remove_line_color . insert_reset_at_line_end($line);
 		}
