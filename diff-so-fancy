@@ -414,7 +414,7 @@ sub mark_empty_line {
 	my $line = shift();
 
 	my $ansi_reset_regex = qr/\e\[0?m/;
-	my $reset_escape = "\e\[m";
+	my $reset_escape = color("reset");
 	my $invert_color = "\e\[7m";
 	my $add_color    = $DiffHighlight::NEW_HIGHLIGHT[1];
 	my $del_color    = $DiffHighlight::OLD_HIGHLIGHT[1];
