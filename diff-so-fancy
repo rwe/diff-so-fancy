@@ -413,7 +413,7 @@ sub parse_hunk_header {
 sub mark_empty_line {
 	my $line = shift();
 
-	my $reset_color  = "\e\\[0?m";
+	my $ansi_reset_regex = "\e\\[0?m";
 	my $reset_escape = "\e\[m";
 	my $invert_color = "\e\[7m";
 	my $add_color    = $DiffHighlight::NEW_HIGHLIGHT[1];
@@ -427,7 +427,7 @@ sub mark_empty_line {
 		$line = $invert_color . $del_color . " " . color('reset') . "\n";
 	# This handles everything else
 	} else {
-		$line =~ s/^($ansi_color_regex)[+-]$reset_color\s*$/$invert_color$1 $reset_escape\n/;
+		$line =~ s/^($ansi_color_regex)[+-]$ansi_reset_regex\s*$/$invert_color$1 $reset_escape\n/;
 	}
 
 	return $line;
