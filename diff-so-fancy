@@ -444,18 +444,22 @@ sub mark_empty_line {
 	my $add_color = get_config_color('new_highlight');
 	my $del_color = get_config_color('old_highlight');
 
+	my $color;
+
 	# This captures lines that do not have any ANSI in them (raw vanilla diff)
 	if ($line eq "+\n") {
-		$line = $invert_color . $add_color . " " . $reset_color . "\n";
+		$color = $add_color;
 	# This captures lines that do not have any ANSI in them (raw vanilla diff)
 	} elsif ($line eq "-\n") {
-		$line = $invert_color . $del_color . " " . $reset_color . "\n";
+		$color = $del_color;
 	# This handles everything else
+	} elsif ($line =~ /^$ansi_color_regex[+-](\s|$ansi_regex)*$/) {
+		$color = $+{ansi};
 	} else {
-		$line =~ s/^$ansi_color_regex[+-](\s|$ansi_regex)*$/$invert_color$+{ansi} $reset_color\n/;
+		return $line;
 	}
 
-	return $line;
+	return "${invert_color}${color} ${reset_color}\n";
 }
 
 # String to boolean
