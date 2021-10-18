@@ -441,7 +441,6 @@ sub parse_hunk_header {
 sub mark_empty_line {
 	my $line = shift();
 
-	my $ansi_reset_regex = qr/\e\[0?m/;
 	my $add_color = get_config_color('new_highlight');
 	my $del_color = get_config_color('old_highlight');
 
@@ -453,7 +452,7 @@ sub mark_empty_line {
 		$line = $invert_color . $del_color . " " . $reset_color . "\n";
 	# This handles everything else
 	} else {
-		$line =~ s/^$ansi_color_regex[+-]$ansi_reset_regex\s*$/$invert_color$+{ansi} $reset_color\n/;
+		$line =~ s/^$ansi_color_regex[+-](\s|$ansi_regex)*$/$invert_color$+{ansi} $reset_color\n/;
 	}
 
 	return $line;
