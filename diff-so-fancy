@@ -441,25 +441,25 @@ sub parse_hunk_header {
 sub mark_empty_line {
 	my $line = shift();
 
-	my $add_color = get_config_color('new_highlight');
-	my $del_color = get_config_color('old_highlight');
-
-	my $color;
-
-	# This captures lines that do not have any ANSI in them (raw vanilla diff)
-	if ($line eq "+\n") {
-		$color = $add_color;
-	# This captures lines that do not have any ANSI in them (raw vanilla diff)
-	} elsif ($line eq "-\n") {
-		$color = $del_color;
-	# This handles everything else
-	} elsif ($line =~ /^$ansi_color_regex[+-](\s|$ansi_regex)*$/) {
-		$color = $+{ansi};
-	} else {
+	if ($line !~ /^${ansi_color_regex}(?<marker>[+-])(\s|$ansi_regex)*$/) {
 		return $line;
 	}
 
-	return "${invert_color}${color} ${reset_color}\n";
+	my $orig_color = $+{ansi};
+	my $marker = $+{marker};
+
+	my $color;
+	if ($marker eq "+") {
+		$color = get_config_color('new_highlight');
+	} elsif ($marker eq "-") {
+		$color = get_config_color('old_highlight');
+	} else {
+		# This won't happen, due to only matching on [+-]. But if one wanted to
+		# use [+- ] instead to highlight context lines, this would be the spot.
+		$color = "${invert_color}${orig_color}";
+	}
+
+	return "${color}${marker}${reset_color}\n";
 }
 
 # String to boolean

@@ -51,8 +51,8 @@ teardown_file() {
 @test "empty lines added/removed are marked" {
 	run printf "%s" "$output"
 
-	assert_line --index 7 --partial  "[7m[1;32m [m"
-	assert_line --index 24 --partial "[7m[1;31m [m"
+	assert_line --index 7 --partial  "[1;32;48;5;22m [m"
+	assert_line --index 24 --partial "[1;31;48;5;52m [m"
 
 	#assert_output --partial "[7m[1;32m [m"
 	#assert_output --partial "[7m[1;31m [m"
