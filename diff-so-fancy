@@ -56,8 +56,8 @@ my $ruler_width                = git_config("diff-so-fancy.rulerWidth", undef);
 my $git_strip_prefix           = git_config_boolean("diff.noprefix","false");
 my $has_stdin                  = has_stdin();
 
-my $ansi_regex = qr/\e\[([0-9]{1,3}(;[0-9]{1,3}){0,10})[mK]/;
-my $ansi_color_regex = qr/(?<ansi>(${ansi_regex})?)/;
+my $ansi_regex = qr/\e\[([0-9]{1,3}(;[0-9]{1,3}){0,10})?[mK]/;
+my $ansi_color_regex = qr/(?<ansi>(${ansi_regex})*)/;
 my $reset_color      = color("reset");
 my $invert_color     = color("reverse");
 my $bold             = color("bold");
@@ -320,7 +320,7 @@ sub do_dsf_stuff {
 			}
 
 			# Check to see if we have the color for the fragment from git
-			if ($+{rem} =~ /\e\[\d/) {
+			if ($+{rem} =~ /${ansi_regex}/) {
 				#print "Has ANSI color for fragment\n";
 			} else {
 				# We don't have the ANSI sequence so we shell out to get it
@@ -587,8 +587,15 @@ sub strip_leading_indicators {
 		return $line; # Nothing to do
 	}
 
-	$line =~ s/^${ansi_color_regex}(?<marker>[ +-]){${columns_to_remove}}/$+{ansi}/;
+	$line =~ s/^${ansi_color_regex}(?<marker>[ +-]){${columns_to_remove}}(?<rem>.*)/$+{ansi}$+{rem}/;
+	my $start_color = $+{ansi} // '';
 	my $marker = $+{marker} // '';
+	my $rem = $+{rem} // '';
+
+	# If the line is empty, but we want it marked, do not remove the whitespace that would mark it.
+	if ($mark_empty_lines && $rem =~ /^(\s|${ansi_regex})*$/) {
+		$line = "${start_color} ${rem}\n";
+	}
 
 	if ($manually_color_lines) {
 		if ($marker eq "+") {
@@ -623,8 +630,7 @@ sub char_count {
 # Remove all ANSI codes from a string
 sub bleach_text {
 	my $str = shift();
-	$str    =~ s/\e\[\d*(;\d+)*m//mg;
-
+	$str    =~ s/${ansi_regex}//mg;
 	return $str;
 }
 
