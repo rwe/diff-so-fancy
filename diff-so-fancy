@@ -833,7 +833,8 @@ sub color {
 	my ($bc)      = $str =~ /on_?(\d+)/g;
 
 	# Some predefined commands
-	my %cmd_map = qw(bold 1 italic 3 underline 4 blink 5 inverse 7);
+	my %cmd_map = qw(bold 1 dim 2 italic 3 ul 4 blink 5 reverse 7 strike 9
+					 nobold 22 nodim 22 noitalic 23 noul 24 noblink 25 noreverse 27 nostrike 29);
 	my $cmd_num = $cmd_map{$cmd // 0};
 
 	my $ret = '';
@@ -903,15 +904,64 @@ sub git_ansi_color {
 
 	my @ansi_part = ();
 
-	if (grep { /bold/ } @parts) {
+	if (grep { /^bold$/ } @parts) {
 		push(@ansi_part, "1");
-		@parts = grep { !/bold/ } @parts; # Remove from array
 	}
 
-	if (grep { /reverse/ } @parts) {
-		push(@ansi_part, "7");
-		@parts = grep { !/reverse/ } @parts; # Remove from array
+	if (grep { /^no-?bold$/ } @parts) {
+		push(@ansi_part, "22");  # not a typo: no-bold and no-dim are the same.
 	}
+
+	if (grep { /^dim$/ } @parts) {
+		push(@ansi_part, "2");
+	}
+
+	if (grep { /^no-?dim$/ } @parts) {
+		push(@ansi_part, "22");
+	}
+
+	if (grep { /^italic$/ } @parts) {
+		push(@ansi_part, "3");
+	}
+
+	if (grep { /^no-?italic$/ } @parts) {
+		push(@ansi_part, "23");
+	}
+
+	if (grep { /^ul$/ } @parts) {
+		push(@ansi_part, "4");
+	}
+
+	if (grep { /^no-?ul$/ } @parts) {
+		push(@ansi_part, "24");
+	}
+
+	if (grep { /^blink$/ } @parts) {
+		push(@ansi_part, "5");
+	}
+
+	if (grep { /^no-?blink$/ } @parts) {
+		push(@ansi_part, "25");
+	}
+
+	if (grep { /^reverse$/ } @parts) {
+		push(@ansi_part, "7");
+	}
+
+	if (grep { /^no-?reverse$/ } @parts) {
+		push(@ansi_part, "27");
+	}
+
+	if (grep { /^strike$/ } @parts) {
+		push(@ansi_part, "9");
+	}
+
+	if (grep { /^no-?strike$/ } @parts) {
+		push(@ansi_part, "29");
+	}
+
+	# Remove parts that aren't colors
+	@parts = grep { exists $colors->{$_} || is_numeric($_) } @parts;
 
 	my $fg  = $parts[0] // "";
 	my $bg  = $parts[1] // "";
