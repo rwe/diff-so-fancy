@@ -28,7 +28,7 @@ my $git_strip_prefix           = git_config_boolean("diff.noprefix","false");
 my $has_stdin                  = has_stdin();
 
 my $ansi_regex = qr/\e\[([0-9]{1,3}(;[0-9]{1,3}){0,10})?[mK]/;
-my $ansi_color_regex = qr/(${ansi_regex})*/;
+my $ansi_color_regex = qr/(?<ansi>(${ansi_regex})*)/;
 my $reset_color      = color("reset");
 my $bold             = color("bold");
 my $meta_color       = "";
@@ -164,7 +164,7 @@ sub do_dsf_stuff {
 		####################################################################
 		if ($line =~ /^${ansi_color_regex}index /) {
 			# Print the line color and then the actual line
-			$meta_color = $1 || get_config_color("meta");
+			$meta_color = $+{ansi} || get_config_color("meta");
 
 			# Get the next line without incrementing counter while loop
 			my $next = $input->[0] || "";
@@ -192,16 +192,15 @@ sub do_dsf_stuff {
 		#########################
 		# Look for the filename #
 		#########################
-		#                                            $4              $5
-		} elsif ($line =~ /^${ansi_color_regex}diff (-r|--git|--cc) (.*?)(\e| b\/|$)/) {
+		} elsif ($line =~ /^${ansi_color_regex}diff (?<flag>-r|--git|--cc) (?<file>.*?)(\e| b\/|$)/) {
 
 			# Mercurial looks like: diff -r 82e55d328c8c hello.c
-			if ($4 eq "-r") {
+			if ($+{flag} eq "-r") {
 				$is_mercurial = 1;
 				$meta_color = get_config_color("meta");
 			# Git looks like: diff --git a/diff-so-fancy b/diff-so-fancy
 			} else {
-				$last_file_seen = $5;
+				$last_file_seen = $+{file};
 			}
 
 			$last_file_seen =~ s|^\w/||; # Remove a/ (and handle diff.mnemonicPrefix).
@@ -213,27 +212,27 @@ sub do_dsf_stuff {
 		########################################
 		# Find the first file: --- a/README.md #
 		########################################
-		} elsif (!$in_hunk && $line =~ /^$ansi_color_regex--- (\w\/)?(.+?)(\e|\t|$)/) {
+		} elsif (!$in_hunk && $line =~ /^$ansi_color_regex--- (?<dir>\w\/)?(?<file>.+?)(\e|\t|$)/) {
 			$meta_color = get_config_color("meta");
 
 			if ($git_strip_prefix) {
-				my $file_dir = $4 || "";
-				$file_1 = $file_dir . $5;
+				my $file_dir = $+{dir} || "";
+				$file_1 = $file_dir . $+{file};
 			} else {
-				$file_1 = $5;
+				$file_1 = $+{file};
 			}
 
 			# Find the second file on the next line: +++ b/README.md
 			my $next = shift(@$input);
-			$next    =~ /^$ansi_color_regex\+\+\+ (\w\/)?(.+?)(\e|\t|$)/;
-			if ($1) {
-				print $1; # Print out whatever color we're using
+			$next    =~ /^$ansi_color_regex\+\+\+ (?<dir>\w\/)?(?<file>.+?)(\e|\t|$)/;
+			if ($+{ansi}) {
+				print $+{ansi}; # Print out whatever color we're using
 			}
 			if ($git_strip_prefix) {
-				my $file_dir = $4 || "";
-				$file_2 = $file_dir . $5;
+				my $file_dir = $+{dir} || "";
+				$file_2 = $file_dir . $+{file};
 			} else {
-				$file_2 = $5;
+				$file_2 = $+{file};
 			}
 
 			if ($file_2 ne "/dev/null") {
@@ -261,11 +260,11 @@ sub do_dsf_stuff {
 			$in_hunk = 1;
 
 			print $line;
-		} elsif ($change_hunk_indicators && $line =~ /^${ansi_color_regex}(@@@* .+? @@@*)(.*)/) {
+		} elsif ($change_hunk_indicators && $line =~ /^${ansi_color_regex}(?<hdr>@@@* .+? @@@*)(?<rem>.*)/) {
 			$in_hunk = 1;
 
-			my $hunk_header = $4;
-			my $remain      = bleach_text($5);
+			my $hunk_header = $+{hdr};
+			my $remain      = bleach_text($+{rem});
 
 			# The number of colums to remove (1 or 2) is based on how many commas in the hunk header
 			$columns_to_remove   = (char_count(",",$hunk_header)) - 1;
@@ -274,8 +273,8 @@ sub do_dsf_stuff {
 				$columns_to_remove = 1;
 			}
 
-			if ($1) {
-				print $1; # Print out whatever color we're using
+			if ($+{ansi}) {
+				print $+{ansi}; # Print out whatever color we're using
 			}
 
 			my ($orig_offset, $orig_count, $new_offset, $new_count) = parse_hunk_header($hunk_header);
@@ -291,7 +290,7 @@ sub do_dsf_stuff {
 			}
 
 			# Check to see if we have the color for the fragment from git
-			if ($5 =~ /${ansi_regex}/) {
+			if ($+{rem} =~ /${ansi_regex}/) {
 				#print "Has ANSI color for fragment\n";
 			} else {
 				# We don't have the ANSI sequence so we shell out to get it
@@ -322,20 +321,20 @@ sub do_dsf_stuff {
 		################################
 		# Look for binary file changes #
 		################################
-		} elsif ($line =~ /^Binary files (\w\/)?(.+?) and (\w\/)?(.+?) differ/) {
-			my $change = file_change_string($2,$4);
+		} elsif ($line =~ /^Binary files (\w\/)?(?<file1>.+?) and (\w\/)?(?<file2>.+?) differ/) {
+			my $change = file_change_string($+{file1}, $+{file2});
 			print horizontal_rule($meta_color);
 			print "$meta_color$change (binary)\n";
 			print horizontal_rule($meta_color);
 		#####################################################
 		# Check if we're changing the permissions of a file #
 		#####################################################
-		} elsif ($clean_permission_changes && $line =~ /^${ansi_color_regex}old mode (\d+)/) {
-			my ($old_mode) = $4;
+		} elsif ($clean_permission_changes && $line =~ /^${ansi_color_regex}old mode (?<old_mode>\d+)/) {
+			my ($old_mode) = $+{old_mode};
 			my $next = shift(@$input);
 
-			if ($1) {
-				print $1; # Print out whatever color we're using
+			if ($+{ansi}) {
+				print $+{ansi}; # Print out whatever color we're using
 			}
 
 			my ($new_mode) = $next =~ m/new mode (\d+)/;
@@ -348,11 +347,9 @@ sub do_dsf_stuff {
 		###############
 		# File rename #
 		###############
-		} elsif ($line =~ /^${ansi_color_regex}similarity index (\d+)%/) {
-			my $simil = $4;
-
+		} elsif ($line =~ /^${ansi_color_regex}similarity index (?<simil>\d+)%/) {
 			# If it's a move with content change we ignore this and the next two lines
-			if ($simil != 100) {
+			if ($+{simil} != 100) {
 				shift(@$input);
 				shift(@$input);
 				next;
@@ -428,7 +425,7 @@ sub mark_empty_line {
 		$line = $invert_color . $del_color . " " . color('reset') . "\n";
 	# This handles everything else
 	} else {
-		$line =~ s/^($ansi_color_regex)[+-]$reset_color\s*$/$invert_color$1 $reset_escape\n/;
+		$line =~ s/^$ansi_color_regex[+-]$reset_color\s*$/$invert_color$+{ansi} $reset_escape\n/;
 	}
 
 	return $line;
@@ -576,10 +573,10 @@ sub strip_leading_indicators {
 		return $line; # Nothing to do
 	}
 
-	$line =~ s/^(${ansi_color_regex})([ +-]){${columns_to_remove}}(.*)/$1$6/;
-	my $start_color = $1 // '';
-	my $marker = $5 // '';
-	my $rem = $6 // '';
+	$line =~ s/^${ansi_color_regex}(?<marker>[ +-]){${columns_to_remove}}(?<rem>.*)/$+{ansi}$+{rem}/;
+	my $start_color = $+{ansi} // '';
+	my $marker = $+{marker} // '';
+	my $rem = $+{rem} // '';
 
 	# If the line is empty, but we want it marked, do not remove the whitespace that would mark it.
 	if ($mark_empty_lines && $rem =~ /^(\s|${ansi_regex})*$/) {
@@ -602,7 +599,7 @@ sub strip_leading_indicators {
 # Insert the color reset code at end of line, but before any newlines
 sub insert_reset_at_line_end {
 	my $line = shift();
-	$line =~ s/^(.*)([\n\r]+)?$/${1}${reset_color}${2}/;
+	$line =~ s/^(?<line>.*)(?<eol>[\n\r]+)?$/$+{line}${reset_color}$+{eol}/;
 	return $line;
 }
 
@@ -847,7 +844,7 @@ sub color {
 
 	# Some predefined colors
 	my %color_map = qw(red 160 blue 21 green 34 yellow 226 orange 214 purple 93 white 15 black 0);
-	$str =~ s|([A-Za-z]+)|$color_map{$1} // $1|eg;
+	$str =~ s|(?<name>[A-Za-z]+)|$color_map{$+{name}} // $+{name}|eg;
 
 	# Get foreground/background and any commands
 	my ($fc,$cmd) = $str =~ /(\d+)?_?(\w+)?/g;
