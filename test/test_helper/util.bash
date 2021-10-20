@@ -13,23 +13,14 @@ set_env() {
 
 # applying colors so ANSI color values will match
 # FIXME: not everyone will have these set, so we need to test for that.
-git_test_config_defaults=(
-  color.diff.meta='227'
-  color.diff.frag='magenta bold'
-  color.diff.commit='227 bold'
-  color.diff.old='red bold'
-  color.diff.new='green bold'
-  color.diff.whitespace='red reverse'
-  color.diff-highlight.oldnormal='red bold'
-  color.diff-highlight.oldhighlight='red bold 52'
-  color.diff-highlight.newnormal='green bold'
-  color.diff-highlight.newhighlight='green bold 22'
-)
+git config color.diff.meta "227"
+git config color.diff.frag "magenta bold"
+git config color.diff.commit "227 bold"
+git config color.diff.old "red bold"
+git config color.diff.new "green bold"
+git config color.diff.whitespace "red reverse"
 
-[ -n "${GIT_CONFIG_COUNT:-}" ] || export GIT_CONFIG_COUNT=0
-for kv in "${git_test_config_defaults[@]}"; do
-  IFS='=' read -r key value <<< "${kv}"
-  eval "$(printf 'export GIT_CONFIG_KEY_%d=%q' "${GIT_CONFIG_COUNT}" "${key}")"
-  eval "$(printf 'export GIT_CONFIG_VALUE_%d=%q' "${GIT_CONFIG_COUNT}" "${value}")"
-  (( GIT_CONFIG_COUNT += 1 ))
-done
+git config color.diff-highlight.oldNormal "red bold"
+git config color.diff-highlight.oldHighlight "red bold 52"
+git config color.diff-highlight.newNormal "green bold"
+git config color.diff-highlight.newHighlight "green bold 22"
