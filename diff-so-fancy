@@ -30,6 +30,7 @@ my $has_stdin                  = has_stdin();
 my $ansi_regex = qr/\e\[([0-9]{1,3}(;[0-9]{1,3}){0,10})[mK]/;
 my $ansi_color_regex = qr/(${ansi_regex})?/;
 my $reset_color      = color("reset");
+my $invert_color     = color("reverse");
 my $bold             = color("bold");
 my $meta_color       = "";
 
@@ -414,21 +415,19 @@ sub parse_hunk_header {
 sub mark_empty_line {
 	my $line = shift();
 
-	my $reset_color  = "\e\\[0?m";
-	my $reset_escape = "\e\[m";
-	my $invert_color = "\e\[7m";
+	my $ansi_reset_regex = qr/\e\[0?m/;
 	my $add_color    = $DiffHighlight::NEW_HIGHLIGHT[1];
 	my $del_color    = $DiffHighlight::OLD_HIGHLIGHT[1];
 
 	# This captures lines that do not have any ANSI in them (raw vanilla diff)
 	if ($line eq "+\n") {
-		$line = $invert_color . $add_color . " " . color('reset') . "\n";
+		$line = $invert_color . $add_color . " " . $reset_color . "\n";
 	# This captures lines that do not have any ANSI in them (raw vanilla diff)
 	} elsif ($line eq "-\n") {
-		$line = $invert_color . $del_color . " " . color('reset') . "\n";
+		$line = $invert_color . $del_color . " " . $reset_color . "\n";
 	# This handles everything else
 	} else {
-		$line =~ s/^($ansi_color_regex)[+-]$reset_color\s*$/$invert_color$1 $reset_escape\n/;
+		$line =~ s/^($ansi_color_regex)[+-]$ansi_reset_regex\s*$/$invert_color$1 $reset_color\n/;
 	}
 
 	return $line;
